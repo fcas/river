@@ -4,10 +4,10 @@ import heapq
 import math
 import random
 
-from river import base
 
+class Vertex:
+    __slots__ = ("item", "uuid", "edges", "r_edges", "flags", "worst_edge")
 
-class Vertex(base.Base):
     _isolated: set[int] = set()
 
     def __init__(self, item, uuid: int) -> None:
@@ -15,7 +15,7 @@ class Vertex(base.Base):
         self.uuid = uuid
         self.edges: dict[int, float] = {}
         self.r_edges: dict[int, float] = {}
-        self.flags: set[int]= set()
+        self.flags: set[int] = set()
         self.worst_edge: int | None = None
 
     def __eq__(self, other) -> bool:
@@ -71,7 +71,9 @@ class Vertex(base.Base):
             if not self.has_rneighbors():
                 Vertex._isolated.add(self.uuid)
 
-    def push_edge(self, node: Vertex, dist: float, max_edges: int, vertex_pool: list[Vertex]) -> int:
+    def push_edge(
+        self, node: Vertex, dist: float, max_edges: int, vertex_pool: list[Vertex]
+    ) -> int:
         if self.is_neighbor(node) or node.uuid == self.uuid:
             return 0
 
@@ -115,12 +117,14 @@ class Vertex(base.Base):
         return res if len(res) > 0 else ([], [])  # type: ignore
 
     def all_neighbors(self) -> set[int]:
-        return set.union(set(self.edges.keys()), set(self.r_edges.keys()))
+        return self.edges.keys() | self.r_edges.keys()
 
     def is_isolated(self):
         return len(self.edges) == 0 and len(self.r_edges) == 0
 
-    def prune(self, prune_prob: float, prune_trigger: int, vertex_pool: list[Vertex], rng: random.Random):
+    def prune(
+        self, prune_prob: float, prune_trigger: int, vertex_pool: list[Vertex], rng: random.Random
+    ):
         if prune_prob == 0:
             return
 

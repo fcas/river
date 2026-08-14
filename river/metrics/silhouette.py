@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import math
 
-from river import metrics, utils
+from river import metrics
+from river.utils.vectordict import euclidean_distance_dict
 
 
 class Silhouette(metrics.base.ClusteringMetric):
@@ -51,7 +52,7 @@ class Silhouette(metrics.base.ClusteringMetric):
 
     References
     ----------
-    [^1]: Rousseeuw, P. (1987). Silhouettes: a graphical aid to the intepretation and validation
+    [^1]: Rousseeuw, P. (1987). Silhouettes: a graphical aid to the interpretation and validation
           of cluster analysis 20, 53 - 65. DOI: 10.1016/0377-0427(87)90125-7
     [^2]: Bifet, A. et al. (2018). "Machine Learning for Data Streams".
           DOI: 10.7551/mitpress/10654.001.0001.
@@ -65,18 +66,24 @@ class Silhouette(metrics.base.ClusteringMetric):
 
     @staticmethod
     def _find_distance_second_closest_center(centers, x):
-        distances = {i: utils.math.minkowski_distance(centers[i], x, 2) for i in centers}
+        distances = {i: euclidean_distance_dict(centers[i], x) for i in centers}
         return sorted(distances.values())[-2]
 
     def update(self, x, y_pred, centers, w=1.0):
-        distance_closest_centroid = utils.math.minkowski_distance(centers[y_pred], x, 2)
+        if y_pred not in centers or len(centers) < 2:
+            return
+
+        distance_closest_centroid = euclidean_distance_dict(centers[y_pred], x)
         self._sum_distance_closest_centroid += distance_closest_centroid
 
         distance_second_closest_centroid = self._find_distance_second_closest_center(centers, x)
         self._sum_distance_second_closest_centroid += distance_second_closest_centroid
 
     def revert(self, x, y_pred, centers, w=1.0):
-        distance_closest_centroid = utils.math.minkowski_distance(centers[y_pred], x, 2)
+        if y_pred not in centers or len(centers) < 2:
+            return
+
+        distance_closest_centroid = euclidean_distance_dict(centers[y_pred], x)
         self._sum_distance_closest_centroid -= distance_closest_centroid
 
         distance_second_closest_centroid = self._find_distance_second_closest_center(centers, x)

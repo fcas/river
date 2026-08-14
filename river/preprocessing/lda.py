@@ -147,12 +147,18 @@ class LDA(base.Transformer):
         self.word_to_index: dict[str, int] = {}
         self.index_to_word: dict[int, str] = {}
 
-        self.nu_1: defaultdict = defaultdict(functools.partial(np.ones, 1))
+        self.nu_1: defaultdict = defaultdict(functools.partial(np.ones, 1))  # type: ignore[misc]
         self.nu_2: defaultdict = defaultdict(functools.partial(np.array, [self.alpha_beta]))
 
         for topic in range(self.n_components):
             self.nu_1[topic] = np.ones(1)
             self.nu_2[topic] = np.array([self.alpha_beta])
+
+    def _unit_test_skips(self):
+        # LDA's stochastic Gibbs sampling and vocabulary indexing depend on the
+        # order in which words are observed, so feature-order independence does
+        # not apply.
+        return {"check_shuffle_features_no_impact"}
 
     def learn_transform_one(self, x: dict) -> dict:
         """Equivalent to `lda.learn_one(x).transform_one(x)`s, but faster.
@@ -209,7 +215,7 @@ class LDA(base.Transformer):
         # Sample empirical topic assignment:
         _, components = self._compute_statistics_components(words_indexes_list)
 
-        return dict(enumerate(components))
+        return dict(enumerate(components.tolist()))
 
     def _update_indexes(self, word_list: typing.Iterable[str]):
         """

@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import typing
+
 import numpy as np
-import pandas as pd
 
 from river import base, linear_model, optim, utils
+
+if typing.TYPE_CHECKING:
+    from narwhals.stable.v2.typing import IntoDataFrame, IntoSeries
+    from numpy.typing import NDArray
 
 
 class LinearRegression(linear_model.base.GLM, base.MiniBatchRegressor):
@@ -131,13 +136,12 @@ class LinearRegression(linear_model.base.GLM, base.MiniBatchRegressor):
     def predict_one(self, x):
         return self.loss.mean_func(self._raw_dot_one(x))
 
-    def predict_many(self, X):
-        return pd.Series(
-            self.loss.mean_func(self._raw_dot_many(X)),
-            index=X.index,
-            name=self._y_name,
-            copy=False,
+    def predict_many(self, X: IntoDataFrame) -> IntoSeries:
+        X = utils.dataframe.into_frame(X)
+        y_pred: NDArray[np.float64] = self.loss.mean_func(
+            self._raw_dot_many(utils.dataframe.to_numpy(X), X.columns)
         )
+        return utils.dataframe.to_native_series(y_pred, name=self._y_name, like=X)
 
     def debug_one(self, x: dict, decimals: int = 5) -> str:
         """Debugs the output of the linear regression.

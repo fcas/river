@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import collections
 import math
+import typing
 
 import numpy as np
-import pandas as pd
 from scipy import sparse
 
+from river import utils
+
 from . import base
+
+if typing.TYPE_CHECKING:
+    import pandas as pd
 
 __all__ = ["BernoulliNB"]
 
@@ -249,21 +254,28 @@ class BernoulliNB(base.BaseNB):
         Input samples joint log likelihood.
 
         """
+        pd = utils.pandas.import_pandas()
         unknown = [x for x in X.columns if x not in self.feature_counts]
         missing = [x for x in self.feature_counts if x not in X.columns]
+
+        is_sparse = hasattr(X, "sparse")
 
         if unknown:
             X = X.drop(unknown, axis="columns")
 
         if missing:
-            X[missing] = False
+            X[missing] = 0
+            if is_sparse:
+                # The new values need to be converted to preserve the sparseness of the dataframe.
+                # Input values can be integers or floats, converting all to float preserves the behaviour without the need for complex conversion logic.
+                X = X.astype(pd.SparseDtype(float, 0.0))
 
         index, columns = X.index, X.columns
 
         if not self.class_counts or not self.feature_counts:
             return pd.DataFrame(index=index)
 
-        if hasattr(X, "sparse"):
+        if is_sparse:
             X = sparse.csr_matrix(X.sparse.to_coo())
             X.data = X.data > self.true_threshold
         else:

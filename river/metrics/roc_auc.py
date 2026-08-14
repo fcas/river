@@ -2,18 +2,27 @@ from __future__ import annotations
 
 from scipy import integrate
 
-from river import metrics, utils
+from river import base, metrics
 
 __all__ = ["ROCAUC"]
 
 
 class ROCAUC(metrics.base.BinaryMetric):
-    """Receiving Operating Characteristic Area Under the Curve.
+    """Receiver Operating Characteristic Area Under the Curve.
 
     This metric is an approximation of the true ROC AUC. Computing the true ROC AUC would
     require storing all the predictions and ground truths, which isn't desirable. The approximation
     error is not significant as long as the predicted probabilities are well calibrated. In any
     case, this metric can still be used to reliably compare models between each other.
+
+    The ROC curve is discretized over thresholds spanning the `[0, 1]` interval, so this metric
+    assumes `y_pred` lies in `[0, 1]` (e.g. a calibrated probability). If `y_pred` is on an
+    arbitrary scale — as with most anomaly detectors, whose scores are only meaningful relative to
+    each estimator — the thresholds miss the score range entirely and the metric degenerates (often
+    to `0`). In that case, either normalize the scores to `[0, 1]` beforehand (for instance with a
+    streaming min-max scaler, or `preprocessing.TargetMinMaxScaler` when the scored value is a
+    regression prediction), or use `metrics.RollingROCAUC`, which ranks scores within a window and
+    is therefore scale-invariant.
 
     Parameters
     ----------
@@ -26,7 +35,7 @@ class ROCAUC(metrics.base.BinaryMetric):
     Examples
     --------
 
-    >>> from river import metrics
+    >>> from river import base, metrics
 
     >>> y_true = [ 0,  0,   1,  1]
     >>> y_pred = [.1, .4, .35, .8]
@@ -63,8 +72,8 @@ class ROCAUC(metrics.base.BinaryMetric):
     def works_with(self, model) -> bool:
         return (
             super().works_with(model)
-            or utils.inspect.isanomalydetector(model)
-            or utils.inspect.isanomalyfilter(model)
+            or isinstance(model, base.AnomalyDetector)
+            or isinstance(model, base.AnomalyFilter)
         )
 
     def update(self, y_true, y_pred, w=1.0):
@@ -100,4 +109,4 @@ class ROCAUC(metrics.base.BinaryMetric):
             tprs[i] = safe_div(a=tp, b=tp + fn)
             fprs[i] = safe_div(a=fp, b=fp + tn)
 
-        return -integrate.trapz(x=fprs, y=tprs)
+        return -integrate.trapezoid(x=fprs, y=tprs)

@@ -159,11 +159,13 @@ class BaseForest(base.Ensemble):
 
             # Update performance evaluator
             self._metrics[i].update(
-                y_true=y,
-                y_pred=model.predict_proba_one(x)
-                if isinstance(self.metric, metrics.base.ClassificationMetric)
-                and not self.metric.requires_labels
-                else y_pred,
+                y_true=y,  # type:ignore[arg-type]
+                y_pred=(
+                    model.predict_proba_one(x)
+                    if isinstance(self.metric, metrics.base.ClassificationMetric)
+                    and not self.metric.requires_labels
+                    else y_pred
+                ),
             )
 
             k = poisson(rate=self.lambda_value, rng=self._rng)
@@ -490,7 +492,7 @@ class ARFClassifier(BaseForest, base.Classifier):
         split attempts.
     max_depth
         [*Tree parameter*] The maximum depth a tree can reach. If `None`, the
-        tree will grow indefinitely.
+        tree will grow until the system recursion limit.
     split_criterion
         [*Tree parameter*] Split criterion to use.<br/>
         - 'gini' - Gini<br/>
@@ -534,7 +536,7 @@ class ARFClassifier(BaseForest, base.Classifier):
         in the majority class is smaller than this parameter value. This parameter avoids
         performing splits when most of the data belongs to a single class.
     max_size
-        [*Tree parameter*] Maximum memory (MB) consumed by the tree.
+        [*Tree parameter*] Maximum memory (MiB) consumed by the tree.
     memory_estimate_period
         [*Tree parameter*] Number of instances between memory consumption checks.
     stop_mem_management
@@ -565,7 +567,7 @@ class ARFClassifier(BaseForest, base.Classifier):
     >>> metric = metrics.Accuracy()
 
     >>> evaluate.progressive_val_score(dataset, model, metric)
-    Accuracy: 71.17%
+    Accuracy: 67.97%
 
     The total number of warnings and drifts detected, respectively
     >>> model.n_warnings_detected(), model.n_drifts_detected()
@@ -661,7 +663,9 @@ class ARFClassifier(BaseForest, base.Classifier):
     def _multiclass(self):
         return True
 
-    def predict_proba_one(self, x: dict) -> dict[base.typing.ClfTarget, float]:
+    def predict_proba_one(
+        self, x: dict, **kwargs: typing.Any
+    ) -> dict[base.typing.ClfTarget, float]:
         y_pred: typing.Counter = collections.Counter()
 
         if len(self) == 0:
@@ -767,7 +771,7 @@ class ARFRegressor(BaseForest, base.Regressor):
         split attempts.
     max_depth
         [*Tree parameter*] The maximum depth a tree can reach. If `None`, the
-        tree will grow indefinitely.
+        tree will grow until the system recursion limit.
     delta
         [*Tree parameter*] Allowed error in split decision, a value closer to 0
         takes longer to decide.
@@ -808,7 +812,7 @@ class ARFRegressor(BaseForest, base.Regressor):
     binary_split
         [*Tree parameter*] If True, only allow binary splits.
     max_size
-        [*Tree parameter*] Maximum memory (MB) consumed by the tree.
+        [*Tree parameter*] Maximum memory (MiB) consumed by the tree.
     memory_estimate_period
         [*Tree parameter*] Number of instances between memory consumption checks.
     stop_mem_management
@@ -849,7 +853,7 @@ class ARFRegressor(BaseForest, base.Regressor):
     >>> metric = metrics.MAE()
 
     >>> evaluate.progressive_val_score(dataset, model, metric)
-    MAE: 0.788619
+    MAE: 0.772113
 
     """
 

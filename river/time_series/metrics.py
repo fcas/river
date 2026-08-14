@@ -9,7 +9,7 @@ from river import base, metrics
 
 class ForecastingMetric(base.Base, abc.ABC):
     @abc.abstractmethod
-    def update(self, y_true: list[Number], y_pred: list[Number]) -> ForecastingMetric:
+    def update(self, y_true: list[Number], y_pred: list[Number]) -> None:
         """Update the metric at each step along the horizon.
 
         Parameters
@@ -48,13 +48,14 @@ class HorizonMetric(ForecastingMetric):
     Examples
     --------
 
-    This is used internally by the `time_series.evaluate` function.
+    This is used internally by the `evaluate.evaluate` function.
 
+    >>> from river import evaluate
     >>> from river import datasets
     >>> from river import metrics
     >>> from river import time_series
 
-    >>> metric = time_series.evaluate(
+    >>> metric = evaluate.evaluate(
     ...     dataset=datasets.AirlinePassengers(),
     ...     model=time_series.HoltWinters(alpha=0.1),
     ...     metric=metrics.MAE(),
@@ -83,13 +84,11 @@ class HorizonMetric(ForecastingMetric):
 
             metric.update(yt, yp)
 
-        return self
-
     def get(self):
         return [metric.get() for metric in self.metrics]
 
     def __repr__(self):
-        prefixes = [f"+{t+1}" for t in range(len(self.metrics))]
+        prefixes = [f"+{t + 1}" for t in range(len(self.metrics))]
         prefix_pad = max(map(len, prefixes))
         return "\n".join(
             f"{prefix:<{prefix_pad}} {metric}" for prefix, metric in zip(prefixes, self.metrics)
@@ -113,14 +112,15 @@ class HorizonAggMetric(HorizonMetric):
     Examples
     --------
 
-    This is used internally by the `time_series.evaluate` function when you pass an `agg_func`.
+    This is used internally by the `evaluate.evaluate` function when you pass an `agg_func`.
 
     >>> import statistics
+    >>> from river import evaluate
     >>> from river import datasets
     >>> from river import metrics
     >>> from river import time_series
 
-    >>> metric = time_series.evaluate(
+    >>> metric = evaluate.evaluate(
     ...     dataset=datasets.AirlinePassengers(),
     ...     model=time_series.HoltWinters(alpha=0.1),
     ...     metric=metrics.MAE(),

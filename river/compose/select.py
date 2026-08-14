@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from river import base
+import typing
+
+from river import base, utils
+
+if typing.TYPE_CHECKING:
+    from narwhals.stable.v2.typing import IntoDataFrameT
 
 __all__ = ["Discard", "Select", "SelectType"]
 
@@ -42,10 +47,10 @@ class Discard(base.Transformer):
 
     """
 
-    def __init__(self, *keys: tuple[base.typing.FeatureName]):
+    def __init__(self, *keys: base.typing.FeatureName):
         self.keys = set(keys)
 
-    def transform_one(self, x):
+    def transform_one(self, x: dict) -> dict:
         return {i: xi for i, xi in x.items() if i not in self.keys}
 
     def __str__(self):
@@ -124,18 +129,17 @@ class Select(base.MiniBatchTransformer):
 
     """
 
-    def __init__(self, *keys: tuple[base.typing.FeatureName]):
+    def __init__(self, *keys: base.typing.FeatureName):
         self.keys = set(keys)
 
     def transform_one(self, x):
         return {i: x[i] for i in self.keys}
 
-    def transform_many(self, X):
-        # INFO: has either side-effects or doesn't have copy - choose your poison
-        # REFLECTION: worth adding `copy=True` parameter to the object constructor to allow both?
-        # << convention is to have pure methods/functions
-        return X.loc[:, list(self.keys)].copy()
-        # return X.loc[:, self.keys]
+    def transform_many(self, X: IntoDataFrameT) -> IntoDataFrameT:
+        # `select` returns a fresh frame in the caller's own backend (and keeps the pandas index),
+        # so the method stays pure — no view aliasing back onto the input.
+        keys = typing.cast("list[str]", list(self.keys))
+        return utils.dataframe.into_frame(X).select(keys).to_native()
 
     def __str__(self):
         return str(sorted(self.keys))
@@ -173,14 +177,14 @@ class SelectType(base.Transformer):
 
     """
 
-    def __init__(self, *types: tuple[type]):
+    def __init__(self, *types: type):
         self.types = types
 
     def transform_one(self, x):
         return {i: xi for i, xi in x.items() if isinstance(xi, self.types)}
 
     def __str__(self):
-        return f'Select({", ".join(t.__name__ for t in self.types)})'
+        return f"Select({', '.join(t.__name__ for t in self.types)})"
 
     def __repr__(self):
         if self.types:

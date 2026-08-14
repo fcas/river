@@ -10,7 +10,7 @@ from .split_criterion import IntraClusterVarianceReductionSplitCriterion
 from .splitter import Splitter
 
 
-class iSOUPTreeRegressor(tree.HoeffdingTreeRegressor, base.MultiTargetRegressor):
+class ISOUPTreeRegressor(tree.HoeffdingTreeRegressor, base.MultiTargetRegressor):
     """Incremental Structured Output Prediction Tree (iSOUP-Tree) for multi-target regression.
 
     This is an implementation of the iSOUP-Tree proposed by A. Osojnik, P. Panov, and
@@ -21,7 +21,8 @@ class iSOUPTreeRegressor(tree.HoeffdingTreeRegressor, base.MultiTargetRegressor)
     grace_period
         Number of instances a leaf should observe between split attempts.
     max_depth
-        The maximum depth a tree can reach. If `None`, the tree will grow indefinitely.
+        The maximum depth a tree can reach. If `None`, the tree will grow until
+          the system recursion limit.
     delta
         Allowed error in split decision, a value closer to 0 takes longer to
         decide.
@@ -62,7 +63,7 @@ class iSOUPTreeRegressor(tree.HoeffdingTreeRegressor, base.MultiTargetRegressor)
     binary_split
         If True, only allow binary splits.
     max_size
-        The max size of the tree, in Megabytes (MB).
+        The max size of the tree, in mebibytes (MiB).
     memory_estimate_period
         Interval (number of processed instances) between memory consumption checks.
     stop_mem_management
@@ -94,7 +95,7 @@ class iSOUPTreeRegressor(tree.HoeffdingTreeRegressor, base.MultiTargetRegressor)
     >>> num = compose.SelectType(numbers.Number) | preprocessing.MinMaxScaler()
     >>> cat = compose.SelectType(str) | preprocessing.OneHotEncoder()
 
-    >>> model = tree.iSOUPTreeRegressor(
+    >>> model = tree.ISOUPTreeRegressor(
     ...     grace_period=100,
     ...     leaf_prediction='model',
     ...     leaf_model={
@@ -207,7 +208,7 @@ class iSOUPTreeRegressor(tree.HoeffdingTreeRegressor, base.MultiTargetRegressor)
 
             return new_adaptive
 
-    def learn_one(self, x, y, *, w: float = 1.0) -> iSOUPTreeRegressor:  # type: ignore
+    def learn_one(self, x, y, *, w: float = 1.0, **kwargs) -> None:
         """Incrementally train the model with one sample.
 
         Training tasks:
@@ -231,7 +232,7 @@ class iSOUPTreeRegressor(tree.HoeffdingTreeRegressor, base.MultiTargetRegressor)
         # Update target set
         self.targets.update(y.keys())
 
-        super().learn_one(x, y, w=w)  # type: ignore
+        super().learn_one(x, y, w=w)
 
     def predict_one(self, x):
         pred = {}

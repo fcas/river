@@ -5,6 +5,7 @@ store the data and each data sample is generated on the fly. Except for a couple
 the majority of these methods are infinite data generators.
 
 """
+
 from __future__ import annotations
 
 from .agrawal import Agrawal
@@ -62,7 +63,7 @@ def _docs_overview(print):
         dataset = eval(dataset_name)()
 
         details = {
-            "Name": f"[{dataset_name}](../datasets/synth/{dataset_name})",
+            "Name": f"[{dataset_name}](datasets/synth/{dataset_name})",
             "Features": dataset.n_features,
             "Sparse": "✔️" if dataset.sparse else "",
         }

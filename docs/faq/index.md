@@ -39,7 +39,7 @@ The algorithms from `sklearn` that support incremental learning are mostly meant
 >>> from river import ensemble
 >>> import pickle
 
->>> model = ensemble.AdaptiveRandomForestClassifier()
+>>> model = ensemble.ARFClassifier()
 
 # save
 >>> with open('model.pkl', 'wb') as f:
@@ -58,4 +58,4 @@ There are many great open-source libraries for building neural network models. W
 
 ## Who are the authors of this library?
 
-We are research engineers, graduate students, PhDs and machine learning researchers. The members of the develompent team are mainly located in France, Brazil and New Zealand.
+We are research engineers, graduate students, PhDs and machine learning researchers. The members of the development team are mainly located in France, Brazil and New Zealand.

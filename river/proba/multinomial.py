@@ -45,7 +45,7 @@ class Multinomial(base.DiscreteDistribution):
     >>> X = ['red', 'green', 'green', 'blue', 'blue']
 
     >>> dist = utils.Rolling(
-    ...     proba.Multinomial(),
+    ...     proba.Multinomial,
     ...     window_size=3
     ... )
 
@@ -78,7 +78,7 @@ class Multinomial(base.DiscreteDistribution):
     >>> days = [1, 2, 3, 4]
 
     >>> dist = utils.TimeRolling(
-    ...     proba.Multinomial(),
+    ...     proba.Multinomial,
     ...     period=dt.timedelta(days=2)
     ... )
 
@@ -130,9 +130,7 @@ class Multinomial(base.DiscreteDistribution):
         self._n -= 1
 
     def sample(self):
-        return self._rng.choices(
-            list(self.counts.keys()), weights=list(self.counts.values())
-        )[0]
+        return self._rng.choices(list(self.counts.keys()), weights=list(self.counts.values()))[0]
 
     def __call__(self, x):
         try:
@@ -141,6 +139,4 @@ class Multinomial(base.DiscreteDistribution):
             return 0.0
 
     def __repr__(self):
-        return "\n".join(
-            f"P({c}) = {self(c):.3f}" for c, _ in self.counts.most_common()
-        )
+        return "\n".join(f"P({c}) = {self(c):.3f}" for c, _ in self.counts.most_common())

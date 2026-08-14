@@ -49,6 +49,7 @@ SGTs can deal with binary classification and single-target regression. They also
 dynamic and static feature quantizers to deal with numerical inputs.
 
 """
+
 from __future__ import annotations
 
 from . import base, splitter
@@ -57,7 +58,8 @@ from .hoeffding_adaptive_tree_classifier import HoeffdingAdaptiveTreeClassifier
 from .hoeffding_adaptive_tree_regressor import HoeffdingAdaptiveTreeRegressor
 from .hoeffding_tree_classifier import HoeffdingTreeClassifier
 from .hoeffding_tree_regressor import HoeffdingTreeRegressor
-from .isoup_tree_regressor import iSOUPTreeRegressor
+from .isoup_tree_regressor import ISOUPTreeRegressor
+from .last_classifier import LASTClassifier
 from .stochastic_gradient_tree import SGTClassifier, SGTRegressor
 
 __all__ = [
@@ -68,7 +70,8 @@ __all__ = [
     "HoeffdingAdaptiveTreeClassifier",
     "HoeffdingTreeRegressor",
     "HoeffdingAdaptiveTreeRegressor",
-    "iSOUPTreeRegressor",
+    "ISOUPTreeRegressor",
+    "LASTClassifier",
     "SGTClassifier",
     "SGTRegressor",
 ]

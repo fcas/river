@@ -1,23 +1,25 @@
 """Running statistics"""
+
 from __future__ import annotations
 
 from . import base
 from .auto_corr import AutoCorr
+from .base import Link
+from .chi_squared import ChiSquared
 from .count import Count
 from .cov import Cov
 from .entropy import Entropy
+from .ewcov import EWCov
 from .ewmean import EWMean
 from .ewvar import EWVar
 from .iqr import IQR, RollingIQR
 from .kolmogorov_smirnov import KolmogorovSmirnov
 from .kurtosis import Kurtosis
-from .link import Link
 from .mad import MAD
 from .maximum import AbsMax, Max, RollingAbsMax, RollingMax
 from .mean import BayesianMean, Mean
 from .minimum import Min, RollingMin
 from .mode import Mode, RollingMode
-from .n_unique import NUnique
 from .pearson import PearsonCorr
 from .ptp import PeakToPeak, RollingPeakToPeak
 from .quantile import Quantile, RollingQuantile
@@ -34,7 +36,9 @@ __all__ = [
     "BayesianMean",
     "Count",
     "Cov",
+    "ChiSquared",
     "Entropy",
+    "EWCov",
     "EWMean",
     "EWVar",
     "IQR",
@@ -46,7 +50,6 @@ __all__ = [
     "Mean",
     "Min",
     "Mode",
-    "NUnique",
     "PeakToPeak",
     "PearsonCorr",
     "Quantile",

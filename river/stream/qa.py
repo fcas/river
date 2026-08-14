@@ -111,6 +111,20 @@ def simulate_qa(
 
     """
 
+    # Fast path: no moment and no delay (the common case).
+    # Skip all memento/queue machinery and yield question then answer directly.
+    if moment is None and delay is None:
+        kwargs_list: list
+        for i, (x, y, *kwargs_list) in enumerate(dataset):
+            kwargs = kwargs_list[0] if kwargs_list else None
+            if copy:
+                x_copy = deepcopy(x)
+            else:
+                x_copy = x
+            yield (i, x_copy, None, kwargs) if kwargs else (i, x_copy, None)
+            yield (i, x, y, kwargs) if kwargs else (i, x, y)
+        return
+
     # Determine how to insert mementos into the queue
     queue = (
         (lambda q, el: bisect.insort(q, el))
@@ -129,9 +143,7 @@ def simulate_qa(
 
     # Coerce delay to a function
     get_delay = (
-        (lambda i, _: 0)
-        if delay is None
-        else (lambda x, _: x[delay])
+        (lambda x, _: x[delay])
         if isinstance(delay, str)
         else (lambda _, __: delay)  # type: ignore
         if not callable(delay)
@@ -140,10 +152,8 @@ def simulate_qa(
 
     mementos: list[Memento] = []
 
-    kwargs: list
-
-    for i, (x, y, *kwargs) in enumerate(dataset):
-        kwargs = kwargs[0] if kwargs else None
+    for i, (x, y, *kwargs_list) in enumerate(dataset):
+        kwargs = kwargs_list[0] if kwargs_list else None
 
         t = get_moment(i, x)
         d = get_delay(x, y)  # type: ignore
@@ -157,21 +167,29 @@ def simulate_qa(
                 break
 
             # Reveal the ground truth and pop the observation from the queue
-            yield (i_old, x_old, y_old, kwargs_old) if kwargs_old else (
-                i_old,
-                x_old,
-                y_old,
+            yield (
+                (i_old, x_old, y_old, kwargs_old)
+                if kwargs_old
+                else (
+                    i_old,
+                    x_old,
+                    y_old,
+                )
             )
             del mementos[0]
 
-        queue(mementos, Memento(i, x, y, kwargs, t + d))
+        queue(mementos, Memento(i, x, y, kwargs, t + d))  # type: ignore[operator]
         if copy:
             x = deepcopy(x)
         yield (i, x, None, kwargs) if kwargs else (i, x, None)
 
     for memento in mementos:
-        yield (memento.i, memento.x, memento.y, memento.kwargs) if memento.kwargs else (
-            memento.i,
-            memento.x,
-            memento.y,
+        yield (
+            (memento.i, memento.x, memento.y, memento.kwargs)
+            if memento.kwargs
+            else (
+                memento.i,
+                memento.x,
+                memento.y,
+            )
         )

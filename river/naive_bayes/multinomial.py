@@ -2,14 +2,18 @@ from __future__ import annotations
 
 import collections
 import math
+import typing
 
 import numpy as np
-import pandas as pd
 from scipy import sparse
 
+from river import utils
 from river.base import tags
 
 from . import base
+
+if typing.TYPE_CHECKING:
+    import pandas as pd
 
 __all__ = ["MultinomialNB"]
 
@@ -29,8 +33,8 @@ class MultinomialNB(base.BaseNB):
 
     Attributes
     ----------
-    class_dist : proba.Multinomial
-        Class prior probability distribution.
+    class_counts : collections.Counter
+        Number of times each class has been seen.
     feature_counts : collections.defaultdict
         Total frequencies per feature and class.
     class_totals : collections.Counter
@@ -256,6 +260,7 @@ class MultinomialNB(base.BaseNB):
         Input samples joint log likelihood.
 
         """
+        pd = utils.pandas.import_pandas()
         index, columns = X.index, X.columns
         known, unknown = [], []
 

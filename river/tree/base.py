@@ -8,6 +8,7 @@ This module defines a bunch of methods to ease the manipulation and diagnostic o
 intention is to provide utilities for walking over a tree and visualizing it.
 
 """
+
 from __future__ import annotations
 
 import abc
@@ -16,9 +17,10 @@ from collections import defaultdict
 from queue import Queue
 from xml.etree import ElementTree as ET
 
-import pandas as pd
+from river import base, utils
 
-from river import base
+if typing.TYPE_CHECKING:
+    import pandas as pd
 
 __all__ = ["Branch", "Leaf"]
 
@@ -130,6 +132,7 @@ class Branch(base.Base, abc.ABC):
 
     def to_dataframe(self) -> pd.DataFrame:
         """Build a DataFrame containing one record for each node."""
+        pd = utils.pandas.import_pandas()
         node_ids: defaultdict[typing.Hashable, int] = defaultdict(lambda: len(node_ids))  # type: ignore
         nodes = []
 

@@ -3,10 +3,6 @@
 </p>
 
 <p align="center">
-  <!-- Tests -->
-  <a href="https://github.com/online-ml/river/actions/workflows/unit-tests.yml">
-    <img src="https://github.com/online-ml/river/actions/workflows/unit-tests.yml/badge.svg" alt="unit-tests">
-  </a>
   <!-- Code quality -->
   <a href="https://github.com/online-ml/river/actions/workflows/code-quality.yml">
     <img src="https://github.com/online-ml/river/actions/workflows/code-quality.yml/badge.svg" alt="code-quality">
@@ -14,10 +10,6 @@
   <!-- Documentation -->
   <a href="https://riverml.xyz">
     <img src="https://img.shields.io/website?label=docs&style=flat-square&url=https%3A%2F%2Friverml.xyz%2F" alt="documentation">
-  </a>
-  <!-- Discord -->
-  <a href="https://discord.gg/qNmrKEZMAn">
-    <img src="https://dcbadge.vercel.app/api/server/qNmrKEZMAn?style=flat-square" alt="discord">
   </a>
   <!-- PyPI -->
   <a href="https://pypi.org/project/river">
@@ -27,10 +19,6 @@
   <a href="https://pepy.tech/project/river">
     <img src="https://static.pepy.tech/badge/river?style=flat-square" alt="pepy">
   </a>
-  <!-- Black -->
-  <a href="https://github.com/psf/black">
-    <img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="black">
-  </a>
   <!-- Mypy -->
   <a href="http://mypy-lang.org/">
     <img src="http://www.mypy-lang.org/static/mypy_badge.svg" alt="mypy">
@@ -38,6 +26,10 @@
   <!-- License -->
   <a href="https://opensource.org/licenses/BSD-3-Clause">
     <img src="https://img.shields.io/badge/License-BSD%203--Clause-blue.svg?style=flat-square" alt="bsd_3_license">
+  </a>
+  <!-- Discord -->
+  <a href="https://discord.gg/qNmrKEZMAn">
+    <img src="https://img.shields.io/badge/Discord-join%20chat-5865F2?style=flat-square&logo=discord&logoColor=white" alt="discord">
   </a>
 </p>
 
@@ -91,7 +83,7 @@ Now let's run the model on the dataset in a streaming fashion. We sequentially i
 
 >>> for x, y in dataset:
 ...     y_pred = model.predict_one(x)      # make a prediction
-...     metric.update(y, y_pred)  # update the metric
+...     metric.update(y, y_pred)           # update the metric
 ...     model.learn_one(x, y)              # make the model learn
 
 >>> metric
@@ -103,13 +95,19 @@ Of course, this is just a contrived example. We welcome you to check the [introd
 
 ## 🛠 Installation
 
-River is intended to work with **Python 3.8 and above**. Installation can be done with `pip`:
+River is intended to work with **Python 3.11 and above**. Installation can be done with `pip`:
 
 ```sh
 pip install river
 ```
 
 There are [wheels available](https://pypi.org/project/river/#files) for Linux, MacOS, and Windows. This means you most probably won't have to build River from source.
+
+River's core online interface (`learn_one` / `predict_one`) has no `pandas` dependency. The mini-batch interface (`learn_many`, `predict_many`, `predict_proba_many`, `transform_many`) is built on `pandas` and is opt-in:
+
+```sh
+pip install "river[pandas]"
+```
 
 You can install the latest development version from GitHub as so:
 

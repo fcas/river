@@ -1,12 +1,18 @@
 from __future__ import annotations
 
-import contextlib
+import functools
 import numbers
+import typing
 
 import numpy as np
-import pandas as pd
 
 from river import optim, utils
+from river.utils.vectordict import VectorDict
+
+if typing.TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from narwhals.stable.v2.typing import IntoDataFrame, IntoSeries
 
 __all__ = ["GLM"]
 
@@ -89,15 +95,13 @@ class GLM:
     def weights(self):
         return self._weights.to_dict()
 
-    @contextlib.contextmanager
-    def _learn_mode(self, mask=None):
+    def _enter_learn_mode(self, mask=None):
         weights = self._weights
-        try:
-            # enable the initializer and set a mask
-            self._weights = utils.VectorDict(weights, self.initializer, mask)
-            yield
-        finally:
-            self._weights = weights
+        self._weights = utils.VectorDict(weights, self.initializer, mask)
+        return weights
+
+    def _exit_learn_mode(self, weights):
+        self._weights = weights
 
     def _get_intercept_update(self, loss_gradient):
         return self.intercept_lr.get(self.optimizer.n_iterations) * loss_gradient
@@ -122,13 +126,11 @@ class GLM:
 
             self._update_weights(x)
 
-        return self
-
     def _update_weights(self, x):
         # L1 cumulative penalty helper
 
-        # Apply penalty to each weight iteratively, with the potential of being parrallelized by using VectorDict
-        for j, xj in x.items():
+        # Apply penalty to each weight iteratively, with the potential of being parallelized by using VectorDict
+        for j in x:
             wj_temp = self._weights[j]
 
             if wj_temp > 0:
@@ -144,51 +146,82 @@ class GLM:
     # Single instance methods
 
     def _raw_dot_one(self, x: dict) -> float:
-        return self._weights @ utils.VectorDict(x) + self.intercept
+        return self._weights.dot(x) + self.intercept
 
-    def _eval_gradient_one(self, x: dict, y: float, w: float) -> tuple[dict, float]:
+    def _eval_gradient_one(self, x: dict, y: float, w: float) -> tuple[utils.VectorDict, float]:
         loss_gradient = self.loss.gradient(y_true=y, y_pred=self._raw_dot_one(x))
         loss_gradient *= w
         loss_gradient = float(
             utils.math.clamp(loss_gradient, -self.clip_gradient, self.clip_gradient)
         )
 
+        gradient: VectorDict[typing.Any, typing.Any] = utils.VectorDict.from_scaled(
+            x, loss_gradient
+        )
+
         if self.l2:
-            return (
-                loss_gradient * utils.VectorDict(x) + self.l2 * self._weights,
-                loss_gradient,
-            )
+            gradient.iadd_scaled(self._weights, self.l2)
 
-        return (loss_gradient * utils.VectorDict(x), loss_gradient)
+        return (gradient, loss_gradient)
 
-    def learn_one(self, x, y, w=1.0):
-        with self._learn_mode(x):
+    def learn_one(self, x, y, w=1.0) -> None:
+        saved = self._enter_learn_mode(x)
+        try:
             self._fit(x, y, w, get_grad=self._eval_gradient_one)
+        finally:
+            self._exit_learn_mode(saved)
 
     # Mini-batch methods
 
-    def _raw_dot_many(self, X: pd.DataFrame) -> np.ndarray:
-        return X.values @ self._weights.to_numpy(X.columns) + self.intercept
+    def _raw_dot_many(self, X: np.ndarray, cols: Sequence[str]) -> np.ndarray:
+        return X @ self._weights.to_numpy(cols) + self.intercept
 
     def _eval_gradient_many(
-        self, X: pd.DataFrame, y: pd.Series, w: float | pd.Series
+        self, X: np.ndarray, cols: Sequence[str], y: np.ndarray, w: float | np.ndarray
     ) -> tuple[dict, float]:
-        loss_gradient = self.loss.gradient(y_true=y.values, y_pred=self._raw_dot_many(X))
+        loss_gradient = self.loss.gradient(y_true=y, y_pred=self._raw_dot_many(X, cols))
         loss_gradient *= w
         loss_gradient = np.clip(loss_gradient, -self.clip_gradient, self.clip_gradient)
 
         # At this point we have a feature matrix X of shape (n, p). The loss gradient is a vector
-        # of length p. We want to multiply each of X's rows by the corresponding value in the loss
-        # gradient. When this is all done, we collapse X by computing the average of each column,
-        # thereby obtaining the mean gradient of the batch. From thereon, the code reduces to the
-        # single instance case.
-        gradient = np.einsum("ij,i->ij", X.values, loss_gradient).mean(axis=0)
+        # of length n. We want to multiply each of X's rows by the corresponding value in the loss
+        # gradient, then collapse X by computing the average of each column, thereby obtaining the
+        # mean gradient of the batch. From thereon, the code reduces to the single instance case.
+        # Contracting the sample axis directly inside the einsum avoids materialising the
+        # intermediate (n, p) matrix that an "ij,i->ij" contraction followed by .mean(axis=0) would.
+        gradient = np.einsum("ij,i->j", X, loss_gradient) / len(X)
         if self.l2:
-            gradient += self.l2 * self._weights.to_numpy(X.columns)
+            gradient += self.l2 * self._weights.to_numpy(cols)
 
-        return dict(zip(X.columns, gradient)), loss_gradient.mean()
+        return dict(zip(cols, gradient)), loss_gradient.mean()
 
-    def learn_many(self, X: pd.DataFrame, y: pd.Series, w: float | pd.Series = 1):
-        self._y_name = y.name
-        with self._learn_mode(set(X)):
-            self._fit(X, y, w, get_grad=self._eval_gradient_many)
+    def learn_many(self, X: IntoDataFrame, y: IntoSeries, w: float | IntoSeries = 1) -> None:
+        # narwhals at the boundary: wrap the input, hand a numpy matrix + column names to the
+        # numpy compute core, and keep the pandas-index/Series-name contract via `_y_name`.
+        Xnw = utils.dataframe.into_frame(X)
+        ynw = utils.dataframe.into_series(y)
+        self._y_name = ynw.name
+
+        cols = Xnw.columns
+        X_np = utils.dataframe.to_numpy(Xnw)
+        y_np = ynw.to_numpy()
+
+        # A scalar weight stays a scalar; a per-sample weight series is converted to numpy.
+        w_np: float | np.ndarray = (
+            w if isinstance(w, (int, float)) else utils.dataframe.into_series(w).to_numpy()
+        )
+
+        saved = self._enter_learn_mode(set(cols))
+        try:
+            # `_fit`'s `get_grad(x, y, w)` reuses its first argument both to compute the gradient
+            # and to drive the weight update. For mini-batches that argument is the column names,
+            # while the feature matrix is bound here via `partial`.
+            get_grad = functools.partial(self._eval_gradient_many, X_np)
+            self._fit(x=cols, y=y_np, w=w_np, get_grad=get_grad)
+        finally:
+            self._exit_learn_mode(saved)
+
+    def _unit_test_skips(self):
+        # `learn_many` takes a single mean-gradient step over the whole batch, which is
+        # deliberately not equivalent to one SGD step per row as `learn_one` would do.
+        return {"check_learn_many_matches_learn_one"}

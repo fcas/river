@@ -63,12 +63,18 @@ class GaussianRandomProjector(base.Transformer):
         self.n_components = n_components
         self.seed = seed
         self._rng = random.Random(seed)
-        self._projection_matrix: collections.defaultdict[
-            base.typing.FeatureName, float
-        ] = collections.defaultdict(self._rand_gauss)
+        self._projection_matrix: collections.defaultdict[base.typing.FeatureName, float] = (
+            collections.defaultdict(self._rand_gauss)
+        )
 
     def _rand_gauss(self):
         return self._rng.gauss(0, 1 / (self.n_components**0.5))
+
+    def _unit_test_skips(self):
+        # The projection matrix is lazily populated from a shared RNG in the
+        # order features are first seen, so different feature orderings produce
+        # different (but equally valid) projections.
+        return {"check_shuffle_features_no_impact"}
 
     def transform_one(self, x):
         return {
@@ -152,6 +158,12 @@ class SparseRandomProjector(base.Transformer):
                 # Flip a coin to decide the sign
                 weights[j] = w if self._rng.random() < 0.5 else -w
         return weights
+
+    def _unit_test_skips(self):
+        # The sparse projection matrix is lazily populated from a shared RNG in
+        # the order features are first seen, so different feature orderings
+        # produce different (but equally valid) projections.
+        return {"check_shuffle_features_no_impact"}
 
     def transform_one(self, x):
         output = {i: 0 for i in range(self.n_components)}

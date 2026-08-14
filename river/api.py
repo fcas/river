@@ -1,4 +1,5 @@
 """River API module."""
+
 from __future__ import annotations
 
 from . import (
@@ -29,7 +30,6 @@ from . import (
     multioutput,
     naive_bayes,
     neighbors,
-    neural_net,
     optim,
     preprocessing,
     proba,
@@ -71,7 +71,6 @@ __all__ = [
     "multioutput",
     "naive_bayes",
     "neighbors",
-    "neural_net",
     "optim",
     "preprocessing",
     "proba",

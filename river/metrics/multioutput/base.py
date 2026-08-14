@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 
-from river import base, utils
+from river import base
 from river.metrics.base import Metric
 
 from .confusion import MultiLabelConfusionMatrix
@@ -38,7 +38,7 @@ class MultiOutputClassificationMetric(MultiOutputMetric):
         y_pred: dict[str | int, base.typing.ClfTarget]
         | dict[str | int, dict[base.typing.ClfTarget, float]],
         w=1.0,
-    ):
+    ) -> None:
         """Update the metric."""
         self.cm.update(y_true, y_pred, w)
 
@@ -48,12 +48,12 @@ class MultiOutputClassificationMetric(MultiOutputMetric):
         y_pred: dict[str | int, base.typing.ClfTarget]
         | dict[str | int, dict[base.typing.ClfTarget, float]],
         w=1.0,
-    ):
+    ) -> None:
         """Revert the metric."""
         self.cm.revert(y_true, y_pred, w)
 
     def works_with(self, model) -> bool:
-        return utils.inspect.ismoclassifier(model)
+        return isinstance(model, base.MultiLabelClassifier)
 
     @property
     def bigger_is_better(self):
@@ -72,7 +72,7 @@ class MultiOutputRegressionMetric(Metric):
         self,
         y_true: dict[str | int, float | int],
         y_pred: dict[str | int, float | int],
-    ):
+    ) -> None:
         """Update the metric."""
 
     @abc.abstractmethod
@@ -80,11 +80,11 @@ class MultiOutputRegressionMetric(Metric):
         self,
         y_true: dict[str | int, float | int],
         y_pred: dict[str | int, float | int],
-    ):
+    ) -> None:
         """Revert the metric."""
 
     def works_with(self, model) -> bool:
-        return utils.inspect.ismoregressor(model)
+        return isinstance(model, base.MultiTargetRegressor)
 
     @property
     def bigger_is_better(self):

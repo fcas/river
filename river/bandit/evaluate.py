@@ -5,7 +5,7 @@ import random
 import typing
 
 try:
-    import gym
+    import gymnasium as gym
 except ImportError:
     ...
 
@@ -52,7 +52,7 @@ def evaluate(
     Examples
     --------
 
-    >>> import gym
+    >>> import gymnasium as gym
     >>> from river import bandit
 
     >>> trace = bandit.evaluate(
@@ -136,10 +136,10 @@ def evaluate(
                 if done[policy_idx]:
                     continue
 
-                arm = policy_.pull(range(env_.action_space.n))  # type: ignore[attr-defined]
+                arm = policy_.pull(range(env_.action_space.n))  # type: ignore[attr-defined, arg-type]
                 observation, reward, terminated, truncated, info = env_.step(arm)
                 policy_.update(arm, reward)
-                reward_stat_.update(reward)
+                reward_stat_.update(reward)  # type: ignore[arg-type]
 
                 yield {
                     "episode": episode,
@@ -167,7 +167,7 @@ History = typing.Iterator[
 def evaluate_offline(
     policy: bandit.base.Policy,
     history: History | bandit.datasets.BanditDataset,
-    reward_stat: stats.base.Univariate = None,
+    reward_stat: stats.base.Univariate | None = None,
 ) -> tuple[stats.base.Univariate, int]:
     """Evaluate a policy on historical logs using replay.
 

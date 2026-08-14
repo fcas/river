@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from river import stats
-from river.stats import _rust_stats
+from river._river_rust import stats as _rust_stats
 
 
 class Skew(stats.base.Univariate):
@@ -33,8 +33,8 @@ class Skew(stats.base.Univariate):
     1.056115628922055
     0.5057840774320389
     0.3478402420400934
-    0.4536710660918704
-    0.4123070197493227
+    0.4536710660918703
+    0.41230701974932277
 
     >>> skew = stats.Skew(bias=True)
     >>> for x in X:
@@ -48,8 +48,8 @@ class Skew(stats.base.Univariate):
     0.7712778043924866
     0.39022088752624845
     0.278892645224261
-    0.37425953513864063
-    0.3476878073823696
+    0.3742595351386406
+    0.34768780738236965
 
     References
     ----------
@@ -57,17 +57,17 @@ class Skew(stats.base.Univariate):
 
     """
 
-    def __init__(self, bias=False):
+    def __init__(self, bias: bool = False) -> None:
         super().__init__()
         self.bias = bias
         self._skew = _rust_stats.RsSkew(bias)
 
     @property
-    def name(self):
+    def name(self) -> str:
         return "skew"
 
-    def update(self, x):
+    def update(self, x: float) -> None:
         self._skew.update(x)
 
-    def get(self):
+    def get(self) -> float:
         return self._skew.get()

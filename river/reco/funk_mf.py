@@ -3,6 +3,7 @@ from __future__ import annotations
 import collections
 import copy
 import functools
+import typing
 
 import numpy as np
 
@@ -115,19 +116,19 @@ class FunkMF(reco.base.Ranker):
         self.clip_gradient = clip_gradient
 
         random_latents = functools.partial(self.initializer, shape=self.n_factors)
-        self.u_latents: collections.defaultdict[
-            int, optim.initializers.Initializer
-        ] = collections.defaultdict(random_latents)
-        self.i_latents: collections.defaultdict[
-            int, optim.initializers.Initializer
-        ] = collections.defaultdict(random_latents)
+        self.u_latents: collections.defaultdict[typing.Hashable, np.ndarray] = (
+            collections.defaultdict(random_latents)
+        )
+        self.i_latents: collections.defaultdict[typing.Hashable, np.ndarray] = (
+            collections.defaultdict(random_latents)
+        )
 
     @property
     def _mutable_attributes(self):
         return {"optimizer", "l2", "loss", "clip_gradient", "initializer"}
 
     def predict_one(self, user, item, x=None):
-        return np.dot(self.u_latents[user], self.i_latents[item])
+        return np.dot(self.u_latents[user], self.i_latents[item]).item()
 
     def learn_one(self, user, item, y, x=None):
         # Calculate the gradient of the loss with respect to the prediction

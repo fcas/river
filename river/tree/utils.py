@@ -12,6 +12,30 @@ from river.base.typing import FeatureName
 from river.stats import Cov, Var
 
 
+def update_stats(left, right, subtract=False):
+    if not isinstance(left, dict):
+        if subtract:
+            left -= right
+        else:
+            left += right
+        return left
+    for key, value in right.items():
+        if key in left:
+            if subtract:
+                left[key] -= value
+            else:
+                left[key] += value
+        elif subtract:
+            left[key] = Var() - value
+        else:
+            left[key] = copy.deepcopy(value)
+    return left
+
+
+def combine_stats(left, right, subtract=False):
+    return update_stats(copy.deepcopy(left), right, subtract)
+
+
 def do_naive_bayes_prediction(x, observed_class_distribution: dict, splitters: dict):
     """Perform Naive Bayes prediction
 
@@ -39,6 +63,16 @@ def do_naive_bayes_prediction(x, observed_class_distribution: dict, splitters: d
         # No observed class distributions, all classes equal
         return {}
 
+    # Pre-resolve log-probability methods to avoid repeated getattr in the inner loop
+    if splitters:
+        _splitter_log_probas = {
+            att_idx: getattr(obs, "cond_log_proba", None)
+            for att_idx, obs in splitters.items()
+            if att_idx in x
+        }
+    else:
+        _splitter_log_probas = {}
+
     votes = {}
     for class_index, class_weight in observed_class_distribution.items():
         # Prior
@@ -48,13 +82,14 @@ def do_naive_bayes_prediction(x, observed_class_distribution: dict, splitters: d
             votes[class_index] = 0.0
             continue
 
-        if splitters:
-            for att_idx in splitters:
-                if att_idx not in x:
-                    continue
-                obs = splitters[att_idx]
-                # Prior plus the log likelihood
-                tmp = obs.cond_proba(x[att_idx], class_index)
+        for att_idx, log_proba in _splitter_log_probas.items():
+            # Use log-probability directly when available (avoids exp+log round-trip)
+            if log_proba is not None:
+                log_p = log_proba(x[att_idx], class_index)
+                if log_p > -math.inf:
+                    votes[class_index] += log_p
+            else:
+                tmp = splitters[att_idx].cond_proba(x[att_idx], class_index)
                 votes[class_index] += math.log(tmp) if tmp > 0 else 0.0
 
     # Max log-likelihood
@@ -78,9 +113,12 @@ class BranchFactory:
 
     merit: float = -math.inf
     feature: FeatureName | None = None
-    split_info: typing.Hashable | list[typing.Hashable] | tuple[
-        typing.Hashable, list[typing.Hashable]
-    ] | None = None
+    split_info: (
+        typing.Hashable
+        | list[typing.Hashable]
+        | tuple[typing.Hashable, list[typing.Hashable]]
+        | None
+    ) = None
     children_stats: list | None = None
     numerical_feature: bool = True
     multiway_split: bool = False
@@ -141,7 +179,7 @@ class GradHess:
 
 
 @functools.total_ordering
-@dataclasses.dataclass
+@dataclasses.dataclass(slots=True)
 class GradHessMerit:
     """Class used to keep the split merit of each split candidate, accordingly to its
     gradient and hessian information.
@@ -235,8 +273,8 @@ class GradHessStats:
 
         grad_term_var = delta_pred * delta_pred * variance.gradient
         hess_term_var = 0.25 * variance.hessian * (delta_pred**4.0)
-        sigma = max(0.0, grad_term_var + hess_term_var + (delta_pred**3) * covariance)
-        return Var._from_state(n, mean, sigma)  # noqa
+        loss_var = max(0.0, grad_term_var + hess_term_var + (delta_pred**3) * covariance)
+        return Var._from_state(n, mean, loss_var)  # noqa
 
 
 def calculate_object_size(obj: typing.Any, unit: str = "byte") -> int:
@@ -251,7 +289,7 @@ def calculate_object_size(obj: typing.Any, unit: str = "byte") -> int:
         Object to evaluate.
     unit
         The unit in which the accounted value is going to be returned.
-        Values: 'byte', 'kB', 'MB' (Default: 'byte').
+        Values: 'byte', 'KiB', 'MiB' (Default: 'byte').
 
     Returns
     -------
@@ -295,9 +333,9 @@ def calculate_object_size(obj: typing.Any, unit: str = "byte") -> int:
             for i in obj:
                 to_visit.append(i)
 
-    if unit == "kB":
+    if unit == "KiB":
         final_size = byte_size / 1024
-    elif unit == "MB":
+    elif unit == "MiB":
         final_size = byte_size / (2**20)
     else:
         final_size = byte_size

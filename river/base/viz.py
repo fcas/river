@@ -4,10 +4,11 @@ import inspect
 import textwrap
 from xml.etree import ElementTree as ET
 
+# This import is not cyclic because 'viz' is not exported by 'base'
+from river import base, compose
 
-def to_html(obj) -> ET.Element:
-    from river import base, compose
 
+def to_html(obj: base.Estimator) -> ET.Element:
     if isinstance(obj, compose.Pipeline):
         return pipeline_to_html(obj)
     if isinstance(obj, compose.TransformerUnion):
@@ -17,9 +18,7 @@ def to_html(obj) -> ET.Element:
     return estimator_to_html(obj)
 
 
-def estimator_to_html(estimator) -> ET.Element:
-    from river import compose
-
+def estimator_to_html(estimator: base.Estimator) -> ET.Element:
     details = ET.Element("details", attrib={"class": "river-component river-estimator"})
 
     summary = ET.Element("summary", attrib={"class": "river-summary"})
@@ -45,7 +44,7 @@ def estimator_to_html(estimator) -> ET.Element:
     return details
 
 
-def pipeline_to_html(pipeline) -> ET.Element:
+def pipeline_to_html(pipeline: compose.Pipeline) -> ET.Element:
     div = ET.Element("div", attrib={"class": "river-component river-pipeline"})
 
     for step in pipeline.steps.values():
@@ -54,8 +53,18 @@ def pipeline_to_html(pipeline) -> ET.Element:
     return div
 
 
-def union_to_html(union) -> ET.Element:
+def union_to_html(union: compose.TransformerUnion) -> ET.Element:
     div = ET.Element("div", attrib={"class": "river-component river-union"})
+
+    details = ET.Element("details", attrib={"class": "river-details"})
+    div.append(details)
+
+    summary = ET.Element("summary", attrib={"class": "river-summary"})
+    details.append(summary)
+
+    pre = ET.Element("pre", attrib={"class": "river-estimator-name"})
+    pre.text = "TransformerUnion"
+    summary.append(pre)
 
     for transformer in union.transformers.values():
         div.append(to_html(transformer))
@@ -63,7 +72,7 @@ def union_to_html(union) -> ET.Element:
     return div
 
 
-def wrapper_to_html(wrapper) -> ET.Element:
+def wrapper_to_html(wrapper: base.Wrapper[base.Estimator]) -> ET.Element:
     div = ET.Element("div", attrib={"class": "river-component river-wrapper"})
 
     details = ET.Element("details", attrib={"class": "river-details"})
@@ -102,12 +111,13 @@ CSS = """
 
 .river-union {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     padding: 1em;
     border-style: solid;
     background: white;
+    max-width: max-content;
 }
 
 .river-wrapper {
@@ -130,22 +140,14 @@ CSS = """
     margin-top: 2em;
 }
 
-.river-union > .river-estimator {
-    margin-top: 0;
-}
-
-.river-union > .river-component {
-    margin-top: 0;
-}
-
-.river-union > .pipeline {
-    margin-top: 0;
-}
-
 /* Spacing within a union of estimators */
 
+.river-union > .river-estimator {
+    margin-top: 1em;
+}
+
 .river-union > .river-component + .river-component {
-    margin-left: 1em;
+    margin-top: 1em;
 }
 
 /* Typography */

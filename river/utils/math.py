@@ -3,15 +3,22 @@
 A lot of this is experimental and has a high probability of changing in the future.
 
 """
+
 from __future__ import annotations
 
 import functools
 import itertools
 import math
 import operator
+from collections.abc import Iterable, Mapping, MutableMapping, Sequence
+from typing import Any, Literal
 
 import numpy as np
+import numpy.typing as npt
 import scipy as sp
+
+from river import base
+from river.utils.vectordict import euclidean_distance_dict as _euclidean_distance
 
 __all__ = [
     "argmax",
@@ -33,7 +40,7 @@ __all__ = [
 ]
 
 
-def dotvecmat(x, A):
+def dotvecmat(x: Mapping[Any, float], A: Mapping[tuple[Any, Any], float]) -> dict[Any, float]:
     """Vector times matrix from left side, i.e. transpose(x)A.
 
     Parameters
@@ -59,7 +66,7 @@ def dotvecmat(x, A):
 
     """
 
-    C = {}
+    C: dict[Any, float] = {}
 
     for (i, xi), ((j, k), ai) in itertools.product(x.items(), A.items()):
         if i != j:
@@ -70,7 +77,9 @@ def dotvecmat(x, A):
     return C
 
 
-def matmul2d(A, B):
+def matmul2d(
+    A: Mapping[tuple[Any, Any], float], B: Mapping[tuple[Any, Any], float]
+) -> dict[tuple[Any, Any], float]:
     """Multiplication for 2D matrices.
 
     Parameters
@@ -107,7 +116,7 @@ def matmul2d(A, B):
         (1, 3): 18.0}
 
     """
-    C = {}
+    C: dict[tuple[Any, Any], float] = {}
 
     for ((i, k1), x), ((k2, j), y) in itertools.product(A.items(), B.items()):
         if k1 != k2:
@@ -117,7 +126,7 @@ def matmul2d(A, B):
     return C
 
 
-def outer(u: dict, v: dict) -> dict:
+def outer(u: Mapping[Any, float], v: Mapping[Any, float]) -> dict[tuple[Any, Any], float]:
     """Outer-product between two vectors.
 
     Parameters
@@ -150,7 +159,7 @@ def outer(u: dict, v: dict) -> dict:
     return {(ki, kj): vi * vj for (ki, vi), (kj, vj) in itertools.product(u.items(), v.items())}
 
 
-def minkowski_distance(a: dict, b: dict, p: int):
+def minkowski_distance(a: Mapping[Any, float], b: Mapping[Any, float], p: int) -> float:
     """Minkowski distance.
 
     Parameters
@@ -162,10 +171,25 @@ def minkowski_distance(a: dict, b: dict, p: int):
         Manhattan distance. When `p=2`, this is equivalent to using the Euclidean distance.
 
     """
-    return sum((abs(a.get(k, 0.0) - b.get(k, 0.0))) ** p for k in {*a.keys(), *b.keys()}) ** (1 / p)
+    if p == 2:
+        return _euclidean_distance(a, b)  # type: ignore[arg-type]
+    if p == 1:
+        return _manhattan_distance(a, b)
+    return sum((abs(a.get(k, 0.0) - b.get(k, 0.0))) ** p for k in {*a.keys(), *b.keys()}) ** (1 / p)  # type: ignore[no-any-return] # If the values are numbers, the return value should always be a number
 
 
-def softmax(y_pred: dict):
+def _manhattan_distance(a: Mapping[Any, float], b: Mapping[Any, float]) -> float:
+    """Fast Manhattan distance between two sparse dicts."""
+    total = 0.0
+    for k, v in a.items():
+        total += abs(v - b.get(k, 0.0))
+    for k, v in b.items():
+        if k not in a:
+            total += abs(v)
+    return total
+
+
+def softmax(y_pred: MutableMapping[Any, float]) -> MutableMapping[Any, float]:
     """Normalizes a dictionary of predicted probabilities, in-place.
 
     Parameters
@@ -190,7 +214,7 @@ def softmax(y_pred: dict):
     return y_pred
 
 
-def prod(iterable):
+def prod(iterable: Iterable[Any]) -> Any:
     """Product function.
 
     Parameters
@@ -201,7 +225,7 @@ def prod(iterable):
     return functools.reduce(operator.mul, iterable, 1)
 
 
-def dot(x: dict, y: dict):
+def dot(x: Mapping[Any, float], y: Mapping[Any, float]) -> float:
     """Returns the dot product of two vectors represented as dicts.
 
     Parameters
@@ -227,7 +251,7 @@ def dot(x: dict, y: dict):
     return sum(x[i] * yi for i, yi in y.items() if i in x)
 
 
-def chain_dot(*xs):
+def chain_dot(*xs: Mapping[Any, float]) -> float:
     """Returns the dot product of multiple vectors represented as dicts.
 
     Parameters
@@ -248,10 +272,10 @@ def chain_dot(*xs):
 
     """
     keys = min(xs, key=len)
-    return sum(prod(x.get(i, 0) for x in xs) for i in keys)
+    return sum(prod(x.get(i, 0) for x in xs) for i in keys)  # type: ignore[no-any-return] # If the values are numbers, the return value should always be a number
 
 
-def sigmoid(x: float):
+def sigmoid(x: float) -> float:
     """Sigmoid function.
 
     Parameters
@@ -266,7 +290,41 @@ def sigmoid(x: float):
     return 1 / (1 + math.exp(-x))
 
 
-def clamp(x: float, minimum=0.0, maximum=1.0):
+def norm_cdf(x: float) -> float:
+    """Cumulative distribution function of the standard normal distribution.
+
+    Parameters
+    ----------
+    x
+
+    Examples
+    --------
+    >>> from river import utils
+    >>> utils.math.norm_cdf(0.0)
+    0.5
+
+    """
+    return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+
+
+def norm_pdf(x: float) -> float:
+    """Probability density function of the standard normal distribution.
+
+    Parameters
+    ----------
+    x
+
+    Examples
+    --------
+    >>> from river import utils
+    >>> utils.math.norm_pdf(0.0)
+    0.3989422804014327
+
+    """
+    return math.exp(-0.5 * x * x) / math.sqrt(2.0 * math.pi)
+
+
+def clamp(x: float, minimum: float = 0.0, maximum: float = 1.0) -> float:
     """Clamp a number.
 
     This is a synonym of clipping.
@@ -281,7 +339,7 @@ def clamp(x: float, minimum=0.0, maximum=1.0):
     return max(min(x, maximum), minimum)
 
 
-def norm(x: dict, order=None):
+def norm(x: Mapping[Any, float], order: Literal["fro", "nuc"] | float | None = None) -> float:
     """Compute the norm of a dictionaries values.
 
     Parameters
@@ -290,10 +348,10 @@ def norm(x: dict, order=None):
     order
 
     """
-    return np.linalg.norm(list(x.values()), ord=order)
+    return np.linalg.norm(list(x.values()), ord=order).item()
 
 
-def sign(x: float):
+def sign(x: float) -> int:
     """Sign function.
 
     Parameters
@@ -304,7 +362,7 @@ def sign(x: float):
     return -1 if x < 0 else (1 if x > 0 else 0)
 
 
-def argmax(lst: list):
+def argmax(lst: Sequence[base.typing.SupportsComparison]) -> int:
     """Argmax function.
 
     Parameters
@@ -315,7 +373,7 @@ def argmax(lst: list):
     return max(range(len(lst)), key=lst.__getitem__)
 
 
-def sherman_morrison(A: np.ndarray, u: np.ndarray, v: np.ndarray):
+def sherman_morrison(A: npt.NDArray[Any], u: npt.NDArray[Any], v: npt.NDArray[Any]) -> None:
     """Sherman-Morrison formula.
 
     This is an inplace function.
@@ -336,7 +394,7 @@ def sherman_morrison(A: np.ndarray, u: np.ndarray, v: np.ndarray):
     sp.linalg.blas.dger(alpha, Au, v.T @ A, a=A, overwrite_a=1)
 
 
-def woodbury_matrix(A: np.ndarray, U: np.ndarray, V: np.ndarray):
+def woodbury_matrix(A: npt.NDArray[Any], U: npt.NDArray[Any], V: npt.NDArray[Any]) -> None:
     """Woodbury matrix identity.
 
     This is an inplace function.
@@ -368,9 +426,11 @@ def log_sum_2_exp(a: float, b: float) -> float:
     b
         Second number
     """
-    # TODO: if |a - b| > 50 skip
-    # TODO: try several log and exp implementations
+    # Use math.log1p for better numerical stability and performance
     if a > b:
-        return a + math.log((1 + math.exp(b - a)) / 2)
+        return a + _LOG_HALF + math.log1p(math.exp(b - a))
     else:
-        return b + math.log((1 + math.exp(a - b)) / 2)
+        return b + _LOG_HALF + math.log1p(math.exp(a - b))
+
+
+_LOG_HALF = math.log(0.5)

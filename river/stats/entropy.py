@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import collections
 import math
+from collections.abc import Hashable
 
 from river import stats
 
@@ -62,32 +63,28 @@ class Entropy(stats.base.Univariate):
 
     """
 
-    def __init__(self, fading_factor=1, eps=1e-8):
+    def __init__(self, fading_factor: float = 1, eps: float = 1e-8) -> None:
         if 0 < fading_factor <= 1:
             self.fading_factor = fading_factor
         else:
             raise ValueError("fading_factor must be between 0 excluded and 1")
         self.eps = eps
-        self.entropy = 0
+        self.entropy = 0.0
         self.n = 0
-        self.counter = collections.Counter()
+        self.counter: collections.Counter[Hashable] = collections.Counter()
 
     @property
-    def name(self):
+    def name(self) -> str:
         return "entropy"
 
-    def update(self, x):
+    def update(self, x: Hashable) -> None:
         cx = self.counter.get(x, 0)
         n = self.n
         eps = self.eps
         fading_factor = self.fading_factor
 
         entropy = self.entropy
-        entropy = (
-            (n + eps)
-            / (n + 1)
-            * (fading_factor * entropy - math.log((n + eps) / (n + 1)))
-        )
+        entropy = (n + eps) / (n + 1) * (fading_factor * entropy - math.log((n + eps) / (n + 1)))
         entropy -= (cx + 1) / (n + 1) * math.log((cx + 1) / (n + 1))
         entropy += (cx + eps) / (n + 1) * math.log((cx + eps) / (n + 1))
         self.entropy = entropy
@@ -95,5 +92,5 @@ class Entropy(stats.base.Univariate):
         self.n += 1
         self.counter.update([x])
 
-    def get(self):
+    def get(self) -> float:
         return self.entropy
