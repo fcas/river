@@ -77,7 +77,7 @@ docs = [
     "tabulate",
     "tqdm",
     "watermark",
-    "notebook<7",
+    "notebook<8",
     "jupyter-contrib-nbextensions>=0.7.0,<0.8",
 ]
 benchmark = [
